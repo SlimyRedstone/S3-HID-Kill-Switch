@@ -1,0 +1,10 @@
+/*
+ * Windows resources embedded in the executable.
+ *
+ * The lowest-numbered icon resource is the one Explorer picks, so the icon
+ * stays at 1. The manifest at id 1, type 24 (RT_MANIFEST) is what asks for
+ * administrator rights and marks the process DPI aware; windres resolves both
+ * paths relative to this file.
+ */
+1 ICON "icon.ico"
+1 24 "app.manifest"

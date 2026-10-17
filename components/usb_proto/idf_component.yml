@@ -1,0 +1,6 @@
+## Dependencies of the usb_proto component
+dependencies:
+  espressif/esp_tinyusb:
+    version: "^2.0.1~1"
+  ## The wire protocol is JSON; cJSON left ESP-IDF core in v6.0.
+  espressif/cjson: "^1.7.19"

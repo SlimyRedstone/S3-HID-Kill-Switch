@@ -1,0 +1,148 @@
+menu "S3 KillSwitch"
+
+    menu "Board (Waveshare ESP32-S3-CAM-OVxxxx)"
+
+        config KS_BOARD_I2C_SDA
+            int "Board I2C SDA"
+            range 0 48
+            default 8
+            help
+                On-board bus (I2C_NUM_0): CH32V003 expander 0x24, ES8311 0x18,
+                ES7210 0x40, camera SCCB.
+
+        config KS_BOARD_I2C_SCL
+            int "Board I2C SCL"
+            range 0 48
+            default 7
+
+        config KS_I2S_MCLK
+            int "I2S MCLK"
+            range 0 48
+            default 10
+
+        config KS_I2S_BCLK
+            int "I2S BCLK"
+            range 0 48
+            default 11
+
+        config KS_I2S_WS
+            int "I2S WS / LRCK"
+            range 0 48
+            default 12
+
+        config KS_I2S_DOUT
+            int "I2S data, ESP32 -> ES8311 DSDIN"
+            range 0 48
+            default 14
+            help
+                Waveshare's BSP drives the ES8311 DSDIN from GPIO14 and reads
+                the ES7210 ASDOUT on GPIO13. Pin tables that list DOUT=13 /
+                DIN=14 name them from the codec side. If the speaker stays
+                silent, try 13.
+
+        config KS_SPEAKER_AMP_EXIO
+            int "Expander pin enabling the NS4150B amplifier"
+            range 0 7
+            default 4
+
+    endmenu
+
+    menu "PN532"
+
+        config KS_PN532_SDA
+            int "PN532 SDA"
+            range 0 48
+            default 43
+            help
+                The PN532 is fixed at I2C address 0x24, the same as the
+                on-board CH32V003 expander, so it cannot share GPIO8/GPIO7.
+                It gets its own controller (I2C_NUM_1) on these pins.
+
+                GPIO43/GPIO44 are the board's "UART" header (U0TXD/U0RXD), the
+                default console UART. Once the NFC bus initialises, these pads
+                are switched to I2C and UART-console output stops. See
+                "Console output" in Component config if you need to keep a log.
+
+        config KS_PN532_SCL
+            int "PN532 SCL"
+            range 0 48
+            default 44
+
+        config KS_PN532_I2C_HZ
+            int "PN532 I2C clock (Hz)"
+            range 10000 400000
+            default 100000
+
+        config KS_PN532_PASSIVE_RETRIES
+            int "Passive activation retries per poll"
+            range 0 254
+            default 5
+            help
+                RFConfiguration MxRtyPassiveActivation. 255 would block each
+                poll until a card appears, so it is not offered.
+
+        config KS_PN532_POLL_MS
+            int "Delay between polls (ms)"
+            range 20 2000
+            default 150
+
+        config KS_CARD_GONE_POLLS
+            int "Empty polls before a card counts as removed"
+            range 1 50
+            default 3
+            help
+                A card left on the reader is reported once. It is reported
+                again only after this many consecutive polls without it.
+
+    endmenu
+
+    menu "Behaviour"
+
+        config KS_VERDICT_TIMEOUT_MS
+            int "Wait for the host's verdict (ms)"
+            range 100 30000
+            default 2000
+
+        config KS_VOLUME
+            int "Speaker volume (0-100)"
+            range 0 100
+            default 70
+
+        config KS_SCAN_BLIP
+            bool "Blip as soon as a card is read"
+            default y
+
+        config KS_BOOT_MELODY
+            bool "Play a melody at startup"
+            default y
+
+    endmenu
+
+    menu "USB identity"
+
+        config KS_USB_VID
+            hex "Vendor ID"
+            default 0x303A
+
+        config KS_USB_PID
+            hex "Product ID"
+            default 0x9911
+
+        config KS_USB_BCD
+            hex "bcdDevice"
+            default 0x0100
+            help
+                Windows caches MS OS 2.0 descriptor answers per VID/PID/bcdDevice.
+                Bump this after changing descriptors.
+
+        config KS_USB_MANUFACTURER
+            string "Manufacturer string"
+            default "SlimyRedstone"
+
+        config KS_USB_PRODUCT
+            string "Product string"
+            default "S3 KillSwitch"
+
+    endmenu
+
+endmenu

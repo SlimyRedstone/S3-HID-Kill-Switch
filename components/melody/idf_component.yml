@@ -1,0 +1,4 @@
+## ES8311 control and I2S data path. 1.6.x is the first line with ESP-IDF 6.0
+## support (esp_hal_ana_conv split).
+dependencies:
+  espressif/esp_codec_dev: "~1.6.2"
