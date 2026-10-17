@@ -1,0 +1,49 @@
+[Unit]
+Description=KillSwitch NFC HID kill switch
+Documentation=https://github.com/SlimyRedstone/KillSwitch
+
+# Last in the session. graphical-session.target is only the point at which a
+# session exists; xdg-desktop-autostart.target is the phase the desktop runs
+# its own autostart entries in, so ordering after it puts KillSwitch behind
+# everything the session starts for itself -- including whatever exports
+# DISPLAY into the user manager. Ordering against a target that is never
+# reached is ignored rather than fatal, so this costs nothing on a desktop
+# that has no such phase.
+After=graphical-session.target xdg-desktop-autostart.target
+PartOf=graphical-session.target
+
+# The rate limit on Restart= below. systemd gives up after five starts in ten
+# seconds by default, which a session can easily take longer than to become
+# usable; twenty tries over five minutes is generous enough for a slow login
+# and still finite, so a machine that will never have a display does not
+# respawn forever.
+#
+# These belong to the unit, not the service, and have since systemd 229. In
+# [Service] only the older spelling StartLimitInterval is still understood,
+# which is why StartLimitIntervalSec there is an unknown key.
+StartLimitIntervalSec=300
+StartLimitBurst=20
+
+[Service]
+Type=simple
+ExecStart=@BIN@
+
+# config.json is read and written here, and respath.c finds resources/ beside
+# it. KillSwitch.desktop says the same thing with Path=.
+WorkingDirectory=@DATA@
+
+# Starting before the display is ready does not block, it fails: the window
+# cannot open without DISPLAY or WAYLAND_DISPLAY and the process exits
+# non-zero. Retrying is what turns that into a slow start rather than nothing
+# at all for the rest of the session.
+#
+# on-failure and no other value: the tray's "Close KillSwitch" returns 0, and
+# always or on-success would bring it straight back and make that look broken.
+Restart=on-failure
+RestartSec=5
+
+[Install]
+# Pulled in by the session, not by the autostart phase: not every desktop
+# reaches xdg-desktop-autostart.target, and being wanted by a target that is
+# never reached would mean never starting at all.
+WantedBy=graphical-session.target

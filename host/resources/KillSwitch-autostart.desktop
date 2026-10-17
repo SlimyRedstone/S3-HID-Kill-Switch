@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=KillSwitch
+Comment=Start KillSwitch with the desktop session
+Exec=@DATA@/autostart.sh
+Path=@DATA@
+Icon=killswitch
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+StartupNotify=false

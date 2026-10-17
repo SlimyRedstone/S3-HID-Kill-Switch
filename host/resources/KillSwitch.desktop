@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=KillSwitch
+GenericName=NFC Kill Switch
+Comment=A scanned card toggles blocking of selected keyboard/mouse input
+Exec=@BIN@
+Path=@DATA@
+Icon=killswitch
+Terminal=false
+Categories=Utility;System;Security;
+Keywords=nfc;card;killswitch;keyboard;mouse;hid;usb;
+StartupNotify=true
+StartupWMClass=KillSwitch
