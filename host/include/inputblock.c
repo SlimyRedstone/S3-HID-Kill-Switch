@@ -18,6 +18,11 @@ static volatile LONG s_block_mouse;
 static volatile LONG s_allow_virtual = 1;   /* let injected (virtual) input through */
 static volatile LONG s_debug;               /* log swallowed-event flags to stderr */
 
+/* Raw flags of the most recent event each hook saw while blocking, so the UI
+ * can surface physical-vs-injected in its own log. -1 means "nothing yet". */
+static volatile LONG s_last_kb_flags = -1;
+static volatile LONG s_last_mouse_flags = -1;
+
 static HHOOK  s_kb_hook;
 static HHOOK  s_mouse_hook;
 static HANDLE s_thread;
@@ -61,6 +66,7 @@ static LRESULT CALLBACK kb_proc(int code, WPARAM wparam, LPARAM lparam)
         const KBDLLHOOKSTRUCT *k = (const KBDLLHOOKSTRUCT *)lparam;
         bool injected = (k->flags & KB_INJECTED_MASK) != 0;
         bool pass = injected && InterlockedCompareExchange(&s_allow_virtual, 0, 0);
+        InterlockedExchange(&s_last_kb_flags, (LONG)k->flags);
         debug_flags("kb", k->flags, injected, pass);
         if (!pass) {
             return 1;                   /* consume: physical input is dropped */
@@ -75,6 +81,7 @@ static LRESULT CALLBACK mouse_proc(int code, WPARAM wparam, LPARAM lparam)
         const MSLLHOOKSTRUCT *m = (const MSLLHOOKSTRUCT *)lparam;
         bool injected = (m->flags & MOUSE_INJECTED_MASK) != 0;
         bool pass = injected && InterlockedCompareExchange(&s_allow_virtual, 0, 0);
+        InterlockedExchange(&s_last_mouse_flags, (LONG)m->flags);
         debug_flags("mouse", m->flags, injected, pass);
         if (!pass) {
             return 1;
@@ -137,6 +144,16 @@ void inputblock_set_debug(bool on)
     InterlockedExchange(&s_debug, on ? 1 : 0);
 }
 
+void inputblock_last_flags(unsigned *kb_flags, unsigned *mouse_flags)
+{
+    if (kb_flags) {
+        *kb_flags = (unsigned)InterlockedCompareExchange(&s_last_kb_flags, -1, -1);
+    }
+    if (mouse_flags) {
+        *mouse_flags = (unsigned)InterlockedCompareExchange(&s_last_mouse_flags, -1, -1);
+    }
+}
+
 void inputblock_shutdown(void)
 {
     inputblock_set(false, false);
@@ -155,6 +172,11 @@ bool inputblock_available(void)                 { return false; }
 void inputblock_set(bool keyboard, bool mouse)  { (void)keyboard; (void)mouse; }
 void inputblock_set_allow_virtual(bool allow)   { (void)allow; }
 void inputblock_set_debug(bool on)              { (void)on; }
+void inputblock_last_flags(unsigned *kb_flags, unsigned *mouse_flags)
+{
+    if (kb_flags)    *kb_flags = 0xFFFFFFFFu;
+    if (mouse_flags) *mouse_flags = 0xFFFFFFFFu;
+}
 void inputblock_shutdown(void)                  {}
 
 #endif /* _WIN32 */

@@ -736,18 +736,28 @@ int ui_run(app_t *app)
     }
     Clay_Arena arena = Clay_CreateArenaWithCapacityAndMemory(mem_size, memory);
 
+    /* Open taller when the debug log is on, so the Traffic container has room
+       and nothing is squeezed out of an 800x600 frame. */
+    int init_h = app->cfg.debug ? UI_WINDOW_HEIGHT_DEBUG : UI_WINDOW_HEIGHT;
+
     Clay_Initialize(arena,
-                    (Clay_Dimensions){ UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT },
+                    (Clay_Dimensions){ UI_WINDOW_WIDTH, (float)init_h },
                     (Clay_ErrorHandler){ HandleClayErrors, NULL });
 
 #ifndef _WIN32
     setenv("RESOURCE_NAME", "KillSwitch", 1);
 #endif
 
-    /* No FLAG_WINDOW_RESIZABLE: the window is a fixed 800x600 and cannot be
-       dragged larger or maximised. */
-    Clay_Raylib_Initialize(UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT, "S3 KillSwitch",
-                           FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
+    /* Fixed size unless debug is on (handled in the loop); without debug the
+       window is a fixed 800x600 and cannot be dragged larger or maximised.
+       FLAG_WINDOW_HIGHDPI: the manifest marks the process per-monitor DPI
+       aware, so on a scaled display (125/150%) the client area is larger than
+       800x600 logical. Without this flag raylib lays the UI out at the scaled
+       pixel size while the window stays 800 wide, so the content runs off the
+       right. The flag makes GetScreenWidth() report the logical size the layout
+       is built against and scales the render to the framebuffer. */
+    Clay_Raylib_Initialize(UI_WINDOW_WIDTH, init_h, "S3 KillSwitch",
+                           FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT | FLAG_WINDOW_HIGHDPI);
     SetExitKey(KEY_NULL);
 
     watchdog_start("killswitch-hang.log");
@@ -780,12 +790,21 @@ int ui_run(app_t *app)
     tray_init(GetWindowHandle(), tray_icon, "S3 KillSwitch");
     tray_set_close_hides(true);
 
+    /* Bake ASCII plus Latin-1 (U+0020..U+00FF) into the atlas, so accented
+     * device names like "Peripherique clavier" render instead of showing '?'.
+     * Passing NULL/0 here would bake only 32..126 (ASCII). */
+    int codepoints[224];
+    for (int i = 0; i < 224; i++) {
+        codepoints[i] = 32 + i;
+    }
+    const int cp_count = 224;
+
     char font_path[512];
     if (respath_find("Roboto-Regular.ttf", font_path, sizeof(font_path))) {
-        s_fonts[FONT_BODY] = LoadFontEx(font_path, FS_ATLAS, NULL, 0);
+        s_fonts[FONT_BODY] = LoadFontEx(font_path, FS_ATLAS, codepoints, cp_count);
     }
     if (respath_find("RobotoMono-Medium.ttf", font_path, sizeof(font_path))) {
-        s_fonts[FONT_MONO] = LoadFontEx(font_path, FS_ATLAS, NULL, 0);
+        s_fonts[FONT_MONO] = LoadFontEx(font_path, FS_ATLAS, codepoints, cp_count);
     }
     for (int i = 0; i < FONT_COUNT; i++) {
         if (!s_fonts[i].glyphs) {
@@ -812,13 +831,18 @@ int ui_run(app_t *app)
             tray_minimize();
         }
 
-        /* Resizable only with the debug log on; otherwise a fixed 800x600. */
+        /* Resizable only with the debug log on; otherwise a fixed 800x600.
+           In debug the minimum is the full debug frame, so the list can never
+           be narrowed below its content or shortened until the log is clipped;
+           it can still be grown for more log. */
         if (app->cfg.debug && !resizable) {
             SetWindowState(FLAG_WINDOW_RESIZABLE);
-            SetWindowMinSize(UI_WINDOW_WIDTH, 400);
+            SetWindowSize(UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT_DEBUG);
+            SetWindowMinSize(UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT_DEBUG);
             resizable = true;
         } else if (!app->cfg.debug && resizable) {
             ClearWindowState(FLAG_WINDOW_RESIZABLE);
+            SetWindowMinSize(UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT);
             SetWindowSize(UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT);
             resizable = false;
         }
@@ -871,6 +895,7 @@ int ui_run(app_t *app)
         }
 
         app_poll(app);
+        app_debug_pump(app);
 
         if (app->notice_seq != s_toast_seen) {
             s_toast_seen = app->notice_seq;

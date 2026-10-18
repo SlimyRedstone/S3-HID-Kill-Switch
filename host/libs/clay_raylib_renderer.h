@@ -101,18 +101,27 @@ static inline Clay_Dimensions Raylib_MeasureText(Clay_StringSlice text, Clay_Tex
 
     float scaleFactor = config->fontSize/(float)fontToUse.baseSize;
 
-    for (int i = 0; i < text.length; ++i, lineCharCount++)
+    for (int i = 0; i < text.length; lineCharCount++)
     {
         if (text.chars[i] == '\n') {
             maxTextWidth = fmax(maxTextWidth, lineTextWidth);
             maxLineCharCount = CLAY__MAX(maxLineCharCount, lineCharCount);
             lineTextWidth = 0;
             lineCharCount = 0;
+            i++;
             continue;
         }
-        int index = text.chars[i] - 32;
+        // Decode one UTF-8 codepoint and map it to a glyph exactly as DrawTextEx
+        // does, so measurement matches rendering. The old `text.chars[i] - 32`
+        // indexed glyphs[] by raw byte: a signed char >= 0x80 (every accented /
+        // multi-byte character) became a negative, out-of-bounds index and
+        // returned a garbage advance -- millions of pixels wide.
+        int codepointSize = 0;
+        int codepoint = GetCodepointNext(&text.chars[i], &codepointSize);
+        int index = GetGlyphIndex(fontToUse, codepoint);
         if (fontToUse.glyphs[index].advanceX != 0) lineTextWidth += fontToUse.glyphs[index].advanceX;
         else lineTextWidth += (fontToUse.recs[index].width + fontToUse.glyphs[index].offsetX);
+        i += (codepointSize > 0 ? codepointSize : 1);
     }
 
     maxTextWidth = fmax(maxTextWidth, lineTextWidth);

@@ -359,6 +359,32 @@ void app_poll(app_t *a)
     }
 }
 
+void app_debug_pump(app_t *a)
+{
+    if (!a->cfg.debug || !a->armed) {
+        return;
+    }
+
+    /* Injected bits: keyboard LLKHF_INJECTED|LLKHF_LOWER_IL_INJECTED = 0x12,
+       mouse LLMHF_INJECTED|LLMHF_LOWER_IL_INJECTED = 0x03. A set bit means the
+       event is software-synthesised (virtual) and, with allow_virtual on,
+       passes through; clear means physical and is blocked. */
+    static unsigned last_kb = 0xFFFFFFFFu, last_mouse = 0xFFFFFFFFu;
+    unsigned kbf = 0xFFFFFFFFu, mf = 0xFFFFFFFFu;
+    inputblock_last_flags(&kbf, &mf);
+
+    if (kbf != 0xFFFFFFFFu && kbf != last_kb) {
+        last_kb = kbf;
+        app_log(a, APP_LOG_EVENT, "kb event: flags=0x%02X injected=%s",
+                kbf, (kbf & 0x12u) ? "yes -> passes" : "no -> blocked");
+    }
+    if (mf != 0xFFFFFFFFu && mf != last_mouse) {
+        last_mouse = mf;
+        app_log(a, APP_LOG_EVENT, "mouse event: flags=0x%02X injected=%s",
+                mf, (mf & 0x03u) ? "yes -> passes" : "no -> blocked");
+    }
+}
+
 /* ---------------------------------------------------------- config ------ */
 
 void app_config_save(app_t *a)

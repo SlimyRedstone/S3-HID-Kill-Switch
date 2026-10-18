@@ -13,9 +13,13 @@
 
 #include "app.h"
 
-/* Fixed window: the layout is designed for exactly this, and resizing is off. */
-#define UI_WINDOW_WIDTH   800
-#define UI_WINDOW_HEIGHT  600
+/* Fixed window: the layout is designed for exactly this, and resizing is off.
+   With debug on, the Traffic log needs more room, so the window opens taller
+   (and only then becomes resizable) -- everything still fits in 800x600 when
+   debug is off. */
+#define UI_WINDOW_WIDTH         800
+#define UI_WINDOW_HEIGHT        600
+#define UI_WINDOW_HEIGHT_DEBUG  820
 
 /* How often the bus is swept for the device while none is connected. */
 #define UI_CONNECT_SCAN_SECONDS 3.0

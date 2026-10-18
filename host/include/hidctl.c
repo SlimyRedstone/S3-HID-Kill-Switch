@@ -117,17 +117,30 @@ static void get_instance_id(DEVINST inst, char *out, size_t cap)
 
 static void get_name(DEVINST inst, char *out, size_t cap)
 {
-    ULONG len = (ULONG)cap;
-    if (CM_Get_DevNode_Registry_PropertyA(inst, CM_DRP_FRIENDLYNAME, NULL,
-                                          out, &len, 0) == CR_SUCCESS && out[0]) {
-        return;
-    }
-    len = (ULONG)cap;
-    if (CM_Get_DevNode_Registry_PropertyA(inst, CM_DRP_DEVICEDESC, NULL,
-                                          out, &len, 0) == CR_SUCCESS && out[0]) {
-        return;
-    }
+    /*
+     * Read the name through the *wide* API and convert to UTF-8. The ANSI API
+     * returns the system code page (e.g. Windows-1252 on a French install),
+     * where "e-acute" is one byte 0xE9 -- not valid UTF-8, so the UI draws it
+     * as '?' and config.json stores a mojibake byte. UTF-16 -> CP_UTF8 keeps
+     * accented device names intact everywhere they are shown or saved.
+     */
     out[0] = '\0';
+
+    WCHAR wide[256];
+    ULONG len = sizeof(wide);           /* this API counts bytes, not chars */
+    if (CM_Get_DevNode_Registry_PropertyW(inst, CM_DRP_FRIENDLYNAME, NULL,
+                                           wide, &len, 0) != CR_SUCCESS || !wide[0]) {
+        len = sizeof(wide);
+        if (CM_Get_DevNode_Registry_PropertyW(inst, CM_DRP_DEVICEDESC, NULL,
+                                               wide, &len, 0) != CR_SUCCESS || !wide[0]) {
+            return;
+        }
+    }
+
+    if (WideCharToMultiByte(CP_UTF8, 0, wide, -1, out, (int)cap, NULL, NULL) == 0) {
+        out[0] = '\0';
+    }
+    out[cap - 1] = '\0';                 /* guarantee termination on truncation */
 }
 
 static bool is_hub_or_root(const char *id)

@@ -59,6 +59,13 @@ void inputblock_set_allow_virtual(bool allow);
  */
 void inputblock_set_debug(bool on);
 
+/**
+ * Raw flags of the most recent event each hook saw while blocking was engaged,
+ * for surfacing physical-vs-injected input. Each is set to 0xFFFFFFFF if no
+ * event has been seen yet. Either pointer may be NULL.
+ */
+void inputblock_last_flags(unsigned *kb_flags, unsigned *mouse_flags);
+
 /** Release everything and stop the hook thread. */
 void inputblock_shutdown(void);
 

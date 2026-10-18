@@ -106,6 +106,11 @@ void app_disconnect(app_t *a);
 
 void app_poll(app_t *a);
 
+/** When debug is on and the switch is engaged, log to the traffic view the raw
+ *  flags of the input events the hooks see, so physical vs injected (virtual)
+ *  input is visible without the separate debug console. Cheap; call each frame. */
+void app_debug_pump(app_t *a);
+
 void app_send_json(app_t *a, const char *json);
 
 /** Re-list the present HID keyboards and mice into a->hids. */
