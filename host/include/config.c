@@ -36,6 +36,7 @@ void config_defaults(config_t *c)
     memset(c, 0, sizeof(*c));
     c->debug = false;
     c->allow_virtual = true;        /* block physical input only, by default */
+    c->volume = CONFIG_VOLUME_DEFAULT;
 }
 
 bool config_has_card(const config_t *c, const char *uid)
@@ -177,6 +178,13 @@ bool config_load(config_t *c, const char *path)
         c->allow_virtual = cJSON_IsTrue(allow_virtual);
     }
 
+    /* Absent -> keep the default; present -> clamp to 0..100. */
+    const cJSON *volume = cJSON_GetObjectItemCaseSensitive(root, "volume");
+    if (cJSON_IsNumber(volume)) {
+        int v = (int)volume->valuedouble;
+        c->volume = v < 0 ? 0 : v > 100 ? 100 : v;
+    }
+
     const cJSON *cards = cJSON_GetObjectItemCaseSensitive(root, "cards");
     const cJSON *card;
     cJSON_ArrayForEach(card, cards) {
@@ -221,6 +229,7 @@ bool config_save(const config_t *c, const char *path)
 
     cJSON_AddBoolToObject(root, "debug", c->debug);
     cJSON_AddBoolToObject(root, "allow_virtual", c->allow_virtual);
+    cJSON_AddNumberToObject(root, "volume", c->volume);
 
     cJSON *cards = cJSON_AddArrayToObject(root, "cards");
     for (int i = 0; i < c->card_count; i++) {

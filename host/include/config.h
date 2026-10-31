@@ -5,6 +5,7 @@
  *   {
  *     "debug": false,
  *     "allow_virtual": true,
+ *     "volume": 80,
  *     "cards":   [ { "uid": "04A1B2C3" } ],
  *     "devices": [ { "name": "Keyboard", "usb": { "vid": "0x046D", "pid": "0xC31C" } } ]
  *   }
@@ -29,7 +30,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define CONFIG_PATH_MAX     512
+#define CONFIG_PATH_MAX       512
+#define CONFIG_VOLUME_DEFAULT 80    /* S3 speaker volume when none is stored */
 #define CONFIG_UID_MAX      24      /* 20 hex digits + NUL, rounded up */
 #define CONFIG_NAME_MAX     96
 #define CONFIG_INSTANCE_MAX 256     /* a Windows device instance id */
@@ -55,6 +57,7 @@ typedef struct {
 typedef struct {
     bool debug;
     bool allow_virtual;             /* block only physical input (default true) */
+    int  volume;                    /* S3 speaker volume 0..100 (default 80) */
 
     config_card_t   cards[CONFIG_CARDS_MAX];
     int             card_count;

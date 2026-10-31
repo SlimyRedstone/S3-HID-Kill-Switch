@@ -16,6 +16,7 @@
  *                                            device -> host adds "touch":0|1
  *   {"set":{"card":{"uid":"04A1B2C3","valid":true}}}
  *                                            dispatched to on_card_verdict
+ *   {"set":{"volume":80}}                    dispatched to on_volume_set
  *   {"get":"led"}          ->  {"led":"ABCDEF"}
  *   {"get":"config"}       ->  {"config":{ ... }}
  *
@@ -94,6 +95,12 @@ typedef esp_err_t (*usb_proto_slider_set_cb_t)(int id, int value);
  */
 typedef esp_err_t (*usb_proto_card_verdict_cb_t)(const char *uid, bool valid);
 
+/**
+ * Applies {"set":{"volume":NN}}, the host's speaker volume, 0..100. Out-of-range
+ * values are clamped before this is called.
+ */
+typedef esp_err_t (*usb_proto_volume_cb_t)(int volume);
+
 /*
  * The host document: the desktop client's own configuration -- faders, their
  * application lists, profiles and macros -- parked on the device so that it
@@ -145,6 +152,7 @@ typedef struct {
     usb_proto_config_set_cb_t on_config_set;  /*!< NULL: config writes error     */
     usb_proto_slider_set_cb_t on_slider_set;  /*!< NULL: slider writes error     */
     usb_proto_card_verdict_cb_t on_card_verdict; /*!< NULL: card verdicts error  */
+    usb_proto_volume_cb_t     on_volume_set;  /*!< NULL: volume writes error     */
 
     /* The host document. All six are needed for it to work; leaving any
        NULL makes {"set":{"host":...}} and {"get":"host"} report so. */

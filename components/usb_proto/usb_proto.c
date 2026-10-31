@@ -517,6 +517,33 @@ static bool apply_set_card(const cJSON *card)
     return true;
 }
 
+static bool apply_set_volume(const cJSON *volume)
+{
+    if (!cJSON_IsNumber(volume)) {
+        reply_error("volume must be a number 0..100");
+        return false;
+    }
+    if (s_cfg.on_volume_set == NULL) {
+        reply_error("no volume handler");
+        return false;
+    }
+
+    int v = volume->valueint;
+    if (v < 0) {
+        v = 0;
+    } else if (v > 100) {
+        v = 100;
+    }
+
+    esp_err_t err = s_cfg.on_volume_set(v);
+    ESP_LOGI(TAG, "set volume -> %d (%s)", v, esp_err_to_name(err));
+    if (err != ESP_OK) {
+        reply_error(esp_err_to_name(err));
+        return false;
+    }
+    return true;
+}
+
 /*
  * Writes the JSON value for a get, which the dispatcher wraps in {"key":...}.
  *
@@ -741,6 +768,7 @@ static const command_t COMMANDS[] = {
     { "slider",  apply_set_slider,  NULL        },
     { "host",    apply_set_host,    read_host   },
     { "card",    apply_set_card,    NULL        },
+    { "volume",  apply_set_volume,  NULL        },
 };
 
 #define COMMAND_COUNT (sizeof(COMMANDS) / sizeof(COMMANDS[0]))

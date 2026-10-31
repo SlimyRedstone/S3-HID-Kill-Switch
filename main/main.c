@@ -89,6 +89,16 @@ static esp_err_t on_card_verdict(const char *uid, bool valid)
     return xQueueSend(s_verdicts, &v, 0) == pdTRUE ? ESP_OK : ESP_ERR_NO_MEM;
 }
 
+/* Host volume slider -> codec output volume. A quick I2C register write, so it
+   runs inline on the dispatch task rather than through the verdict queue. */
+static esp_err_t on_volume_set(int volume)
+{
+    if (!s_audio_ok) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    return melody_set_volume(volume);
+}
+
 static void usb_start(void)
 {
     uint8_t mac[6] = { 0 };
@@ -105,6 +115,7 @@ static void usb_start(void)
     cfg.product         = CONFIG_KS_USB_PRODUCT;
     cfg.serial          = s_usb_serial;
     cfg.on_card_verdict = on_card_verdict;
+    cfg.on_volume_set   = on_volume_set;
 
     ESP_ERROR_CHECK(usb_proto_start(&cfg));
 }

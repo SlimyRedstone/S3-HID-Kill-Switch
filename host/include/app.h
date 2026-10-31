@@ -126,6 +126,14 @@ void app_set_armed(app_t *a, bool engage);
 /** Flip the kill switch. */
 void app_toggle(app_t *a);
 
+/** Set the S3 speaker volume (0..100) and persist it. Does not send; the UI
+ *  throttles sends while dragging. */
+void app_set_volume(app_t *a, int volume);
+
+/** Send the current configured volume to the device (on connect, and on the
+ *  UI's throttled/released drag). A no-op while disconnected. */
+void app_send_volume(app_t *a);
+
 /** Decide a scanned card and reply to the S3; toggles on a valid card. */
 void app_handle_card(app_t *a, const char *uid, const char *type);
 

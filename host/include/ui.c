@@ -310,6 +310,103 @@ static void ui_status_banner(app_t *app)
     }
 }
 
+/* -------------------------------------------------------------- volume --- */
+
+/* The labelled speaker-volume slider. Clay only reserves the track box here;
+   ui_volume_draw() paints it and handles the drag afterwards, the same split
+   the scrollbars use (Clay has no raw pointer geometry mid-layout). */
+static void ui_volume_row(app_t *app)
+{
+    CLAY(CLAY_ID("VolumeRow"), {
+        .layout = {
+            .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIT(0) },
+            .padding = { 14, 14, 8, 8 },
+            .childGap = 12,
+            .childAlignment = { .y = CLAY_ALIGN_Y_CENTER },
+        },
+        .backgroundColor = C_CARD,
+        .cornerRadius = CLAY_CORNER_RADIUS(12),
+        .border = { .color = C_BORDER, .width = { 1, 1, 1, 1 } },
+    }) {
+        CLAY_TEXT(CLAY_STRING("Speaker"), CLAY_TEXT_CONFIG({
+            .fontId = FONT_BODY, .fontSize = FS_CAPTION, .textColor = C_MUTED }));
+
+        /* Fills the middle; painted over by ui_volume_draw. */
+        CLAY(CLAY_ID("VolTrack"), {
+            .layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIXED(20) } },
+        }) {}
+
+        CLAY_TEXT(dyn(fmt("%3d%%", app->cfg.volume)), CLAY_TEXT_CONFIG({
+            .fontId = FONT_MONO, .fontSize = FS_SMALL, .textColor = C_FG }));
+    }
+}
+
+/* Paint the slider over its reserved box and handle the drag. Updates volume
+   live; throttles the sends to ~20/s while dragging and sends the exact final
+   value on release, so the link is never flooded. */
+static void ui_volume_draw(app_t *app)
+{
+    Clay_ElementData el = Clay_GetElementData(CLAY_ID("VolTrack"));
+    if (!el.found) {
+        return;
+    }
+    Clay_BoundingBox b = el.boundingBox;
+
+    const float track_h = 6.0f;
+    const float kr = 8.0f;
+    float tx = b.x + kr;                 /* inset so the knob stays inside */
+    float tw = b.width - kr * 2.0f;
+    if (tw < 1.0f) {
+        return;
+    }
+    float ty = b.y + (b.height - track_h) / 2.0f;
+    float cy = b.y + b.height / 2.0f;
+
+    int vol = app->cfg.volume;
+    if (vol < 0) vol = 0; else if (vol > 100) vol = 100;
+
+    Vector2 mouse = GetMousePosition();
+    Rectangle hit = { b.x, b.y, b.width, b.height };
+
+    static bool   dragging;
+    static double last_send;
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(mouse, hit)) {
+        dragging = true;
+    }
+    if (dragging) {
+        float f = (mouse.x - tx) / tw;
+        if (f < 0) f = 0; else if (f > 1) f = 1;
+        int nv = (int)(f * 100.0f + 0.5f);
+        if (nv != app->cfg.volume) {
+            app_set_volume(app, nv);
+            vol = nv;
+            if (GetTime() - last_send > 0.05) {
+                last_send = GetTime();
+                app_send_volume(app);
+            }
+        }
+        if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            dragging = false;
+            app_send_volume(app);           /* exact final value */
+        }
+    }
+
+    float frac = vol / 100.0f;
+    float kx = tx + tw * frac;
+    bool  hot = dragging || CheckCollisionPointRec(mouse, hit);
+
+    DrawRectangleRounded((Rectangle){ tx, ty, tw, track_h }, 0.5f, 4,
+                         (Color){ 0x2a, 0x2a, 0x2a, 255 });
+    if (frac > 0.0f) {
+        DrawRectangleRounded((Rectangle){ tx, ty, tw * frac, track_h }, 0.5f, 4,
+                             (Color){ 0x5b, 0x8c, 0xff, 255 });
+    }
+    DrawCircleV((Vector2){ kx, cy }, kr,
+                hot ? (Color){ 0x7a, 0xa4, 0xff, 255 }
+                    : (Color){ 0x9a, 0xb8, 0xff, 255 });
+}
+
 /* --------------------------------------------------------------- tabs ---- */
 
 static void ui_tab_bar(void)
@@ -927,6 +1024,7 @@ int ui_run(app_t *app)
         }) {
             ui_header(app);
             ui_status_banner(app);
+            ui_volume_row(app);
             ui_tab_bar();
 
             /* The active tab fills the space between the bar and the log. */
@@ -960,6 +1058,7 @@ int ui_run(app_t *app)
         if (app->cfg.debug) {
             ui_scrollbar(CLAY_ID("LogScroll"));
         }
+        ui_volume_draw(app);
         ui_draw_toast();
         watchdog_phase("present");
         EndDrawing();

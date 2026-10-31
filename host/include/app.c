@@ -155,6 +155,31 @@ void app_toggle(app_t *a)
     app_set_armed(a, !a->armed);
 }
 
+/* ---------------------------------------------------------- volume ------- */
+
+void app_send_volume(app_t *a)
+{
+    char json[48];
+    snprintf(json, sizeof(json), "{\"set\":{\"volume\":%d}}", a->cfg.volume);
+    app_send_json(a, json);         /* a no-op while not connected */
+}
+
+void app_set_volume(app_t *a, int volume)
+{
+    if (volume < 0) {
+        volume = 0;
+    } else if (volume > 100) {
+        volume = 100;
+    }
+    if (volume == a->cfg.volume) {
+        return;
+    }
+    /* State only: the UI throttles the actual sends during a drag and sends the
+       final value on release, so dragging does not flood the link. */
+    a->cfg.volume = volume;
+    a->config_dirty = true;
+}
+
 /* --------------------------------------------------------- card logic --- */
 
 /* Reply to the S3, which turns the verdict into a success or error melody. */
@@ -276,6 +301,9 @@ bool app_connect(app_t *a)
 
     app_log(a, APP_LOG_EVENT, "connected: %04X:%04X, interface %d, IN 0x%02X OUT 0x%02X",
             APP_USB_VID, a->dev->pid, a->dev->interface, a->dev->ep_in, a->dev->ep_out);
+
+    /* Push the stored volume so the speaker matches the UI from the first beep. */
+    app_send_volume(a);
     return true;
 }
 
